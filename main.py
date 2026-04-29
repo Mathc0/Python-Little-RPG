@@ -1,5 +1,140 @@
 import random
 from abc import ABC, abstractmethod
+import pygame
+import os
+
+SOUND_ENABLED = True
+try:
+    pygame.mixer.init()
+except pygame.error as e:
+    print(f"Attention : Le mixeur Pygame n'a pas pu être initialisé : {e}. Le son sera désactivé.")
+    SOUND_ENABLED = False
+
+def play_music(file_path):
+    """Charge et joue une musique en boucle."""
+    if SOUND_ENABLED and os.path.exists(file_path):
+        try:
+            pygame.mixer.music.load(file_path)
+            pygame.mixer.music.play(-1)  # -1 pour jouer en boucle indéfiniment
+        except pygame.error as e:
+            print(f"Impossible de jouer la musique {file_path}: {e}")
+
+def stop_music():
+    """Arrête la musique en cours."""
+    if SOUND_ENABLED:
+        pygame.mixer.music.stop()
+
+def play_sound_effect(file_path):
+    """Joue un effet sonore une fois."""
+    if SOUND_ENABLED and os.path.exists(file_path):
+        try:
+            sound = pygame.mixer.Sound(file_path)
+            sound.play()
+        except pygame.error as e:
+            print(f"Impossible de jouer l'effet sonore {file_path}: {e}")
+
+MUSIC_MENU = "assets/musiques/menu_theme.mp3"
+MUSIC_TUTORIAL = "assets/musiques/tutorial_theme.mp3"
+MUSIC_BATTLE = "assets/musiques/battle_theme.mp3"
+MUSIC_BOSS_BATTLE = "assets/musiques/boss_battle_theme.mp3"
+MUSIC_EXPLORATION = "assets/musiques/exploration_theme.mp3"
+MUSIC_SHOP = "assets/musiques/shop_theme.mp3"
+SFX_ATTACK = "assets/sfx/attack.wav"
+SFX_HEAL = "assets/sfx/heal.wav"
+SFX_LEVEL_UP = "assets/sfx/level_up.wav"
+SFX_VICTORY = "assets/sfx/victory.wav"
+SFX_DEFEAT = "assets/sfx/defeat.wav"
+SFX_ITEM_USE = "assets/sfx/item_use.wav"
+SFX_SHOP_ENTER = "assets/sfx/shop_enter.mp3" 
+
+class Menu:
+    """Classe pour gérer le menu principal du jeu."""
+    
+    def __init__(self):
+        self.scores = []
+        self.arene = None
+    
+    def afficher_titre(self):
+        """Affiche le titre du jeu."""
+        print("\n" + "="*40)
+        print("     === RPG PYTHON ===")
+        print("="*40 + "\n")
+    
+    def afficher_menu_principal(self):
+        """Affiche le menu principal."""
+        self.afficher_titre()
+        print("1. Jouer")
+        print("2. Tutoriel")
+        print("3. Historique des scores")
+        print("4. Quitter")
+        print("-"*40)
+        return input("Votre choix : ").strip()
+    
+    def jouer(self):
+        """Lance une partie du jeu."""
+        self.arene = Arene()
+        self.arene.jouer()
+        self.scores = self.arene._historique_scores
+    
+    def afficher_tutoriel(self):
+        """Affiche le tutoriel du jeu."""
+        print("\n" + "="*40)
+        print("           TUTORIEL")
+        print("="*40)
+        print("\nBienvenue dans le RPG Python !")
+        print("\n--- OBJECTIF ---")
+        print("Survivre à des vagues d'ennemis pour accumuler des points.")
+        print("\n--- COMBAT ---")
+        print("1. Attaque : Attaque un ennemi aléatoire")
+        print("2. Capacité Spéciale : Attaque plus puissante (2x l'attaque)")
+        print("3. Soin : Récupère 20 PV")
+        print("4. Utiliser Item : Utilise un item de votre inventaire")
+        print("\n--- SYSTÈME DE PROGRESSION ---")
+        print("• Gagnez de l'XP en battant des ennemis")
+        print("• Montez de niveau pour augmenter vos stats")
+        print("• Gagnez de l'or pour acheter des items")
+        print("\n--- TYPES D'ENNEMIS ---")
+        print("• Gobelin : Ennemi faible")
+        print("• Orc : Ennemi moyen, attaque puissante")
+        print("• Sorcier : Ennemi magique, attaque très puissante")
+        print("• Boss : Apparaît tous les 5 niveaux")
+        print("\n--- BOUTIQUE ---")
+        print("Achetez des potions et des bonus avec votre or.")
+        print("\nBonne chance !")
+        print("-"*40 + "\n")
+    
+    def afficher_scores(self):
+        """Affiche l'historique des scores."""
+        print("\n" + "="*40)
+        print("       HISTORIQUE DES SCORES")
+        print("="*40)
+        if not self.scores:
+            print("Aucun score enregistré pour le moment.")
+        else:
+            for i, score in enumerate(self.scores, 1):
+                print(f"{i}. Vague {score}")
+        print("-"*40 + "\n")
+    
+    def lancer(self):
+        """Lance la boucle du menu principal."""
+        play_music(MUSIC_MENU)
+        while True:
+            choix = self.afficher_menu_principal()
+            
+            if choix == "1":
+                stop_music()
+                self.jouer()
+                play_music(MUSIC_MENU)
+            elif choix == "2":
+                self.afficher_tutoriel()
+            elif choix == "3":
+                self.afficher_scores()
+            elif choix == "4":
+                stop_music()
+                print("Merci d'avoir joué ! À bientôt !\n")
+                break
+            else:
+                print("Choix invalide. Veuillez réessayer.\n")    
 
 class Item:
     def __init__(self, nom, type_, effet, cout):
@@ -16,6 +151,7 @@ class Item:
             else:
                 soin = self.effet
             joueur.pv = min(joueur.pv_max, joueur.pv + soin)
+            play_sound_effect(SFX_HEAL)
             print(f"{joueur.nom} utilise {self.nom} et récupère {soin} PV. PV actuel : {joueur.pv}/{joueur.pv_max}")
         elif self.type == 'boost_joueur':
             if 'attaque' in self.effet:
@@ -24,6 +160,7 @@ class Item:
             if 'defense' in self.effet:
                 joueur.defense += self.effet['defense']
                 print(f"{joueur.nom} utilise {self.nom} et gagne +{self.effet['defense']} défense temporaire.")
+            play_sound_effect(SFX_ITEM_USE)
         elif self.type == 'debuff_ennemi':
             if ennemi:
                 if 'attaque' in self.effet:
@@ -32,6 +169,7 @@ class Item:
                 if 'defense' in self.effet:
                     ennemi.defense -= self.effet['defense']
                     print(f"{joueur.nom} utilise {self.nom} et réduit la défense de {ennemi.nom} de {self.effet['defense']}.")
+            play_sound_effect(SFX_ITEM_USE)
 
 # Items disponibles
 items_disponibles = [
@@ -140,18 +278,21 @@ class Heros(Entite):
 
     def monter_niveau(self):
         self._niveau += 1
+        play_sound_effect(SFX_LEVEL_UP)
         self._xp -= self._xp_prochain_niveau
         self._xp_prochain_niveau = int(self._xp_prochain_niveau * 1.5)
         self._pv_max += 10
         self._pv = self._pv_max
         self._attaque += 5
         self._defense += 2
-        print(f"{self.nom} monte au niveau {self._niveau} !")
+        print(f"{self.nom} monte au niveau {self._niveau} ! Ses statistiques augmentent.")
 
     def attaquer(self, cible):
         degats = self._attaque + random.randint(-2, 2)
         degats_reels = cible.recevoir_degats(degats)
+        play_sound_effect(SFX_ATTACK)
         print(f"{self.nom} attaque {cible.nom} pour {degats_reels} dégâts !")
+
 
     def capacite_speciale_action(self, cible):
         degats = self._attaque * 2 + random.randint(0, 5)
@@ -160,6 +301,7 @@ class Heros(Entite):
 
     def soin(self):
         soin = 20
+        play_sound_effect(SFX_HEAL)
         self._pv = min(self._pv_max, self._pv + soin)
         print(f"{self.nom} se soigne pour {soin} PV. PV actuel : {self._pv}/{self._pv_max}")
 
@@ -184,22 +326,27 @@ class Ennemi(Entite):
     def attaquer(self, cible):
         if self._type == "Gobelin":
             degats = self._attaque + random.randint(-1, 1)
+            play_sound_effect(SFX_ATTACK)
             degats_reels = cible.recevoir_degats(degats)
             print(f"{self.nom} (Gobelin) attaque {cible.nom} pour {degats_reels} dégâts !")
         elif self._type == "Orc":
             degats = self._attaque + random.randint(0, 3)
+            play_sound_effect(SFX_ATTACK)
             degats_reels = cible.recevoir_degats(degats)
             print(f"{self.nom} (Orc) charge {cible.nom} pour {degats_reels} dégâts !")
         elif self._type == "Sorcier":
             degats = self._attaque + random.randint(1, 4)
+            play_sound_effect(SFX_ATTACK)
             degats_reels = cible.recevoir_degats(degats)
             print(f"{self.nom} (Sorcier) lance un sort sur {cible.nom} pour {degats_reels} dégâts !")
         else:
             degats = self._attaque
+            play_sound_effect(SFX_ATTACK)
             degats_reels = cible.recevoir_degats(degats)
             print(f"{self.nom} attaque {cible.nom} pour {degats_reels} dégâts !")
 
 class Boss(Ennemi):
+
     def __init__(self, nom, pv, attaque, defense, type_ennemi, butin_xp, competence_unique, multiplicateur_stats):
         super().__init__(nom, pv, attaque, defense, type_ennemi, butin_xp)
         self._competence_unique = competence_unique
@@ -215,6 +362,7 @@ class Boss(Ennemi):
 
     def attaquer(self, cible):
         degats = int(self._attaque * 1.5) + random.randint(0, 5)
+        play_sound_effect(SFX_ATTACK) # Boss attack sound could be different
         degats_reels = cible.recevoir_degats(degats)
         print(f"{self.nom} (Boss) utilise {self._competence_unique} sur {cible.nom} pour {degats_reels} dégâts !")
 
@@ -230,6 +378,7 @@ class Arene:
         types = ["Gobelin", "Orc", "Sorcier"]
         for i in range(nombre_ennemis):
             type_ennemi = random.choice(types)
+            pv = attaque = defense = 0
             if type_ennemi == "Gobelin":
                 pv = 30 + self._numero_vague * 5
                 attaque = 10 + self._numero_vague * 2
@@ -242,6 +391,8 @@ class Arene:
                 pv = 25 + self._numero_vague * 4
                 attaque = 20 + self._numero_vague * 4
                 defense = 1 + self._numero_vague
+            else:
+                raise ValueError(f"Type d'ennemi inattendu: {type_ennemi}")
             butin_xp = 20 + self._numero_vague * 5
             ennemi = Ennemi(f"{type_ennemi} {i+1}", pv, attaque, defense, type_ennemi, butin_xp)
             ennemis.append(ennemi)
@@ -254,6 +405,7 @@ class Arene:
         return ennemis
 
     def combat(self, ennemis):
+        play_music(MUSIC_BATTLE) # Start battle music
         print(f"\n--- Vague {self._numero_vague} ---")
         while self.heros.est_vivant() and any(e.est_vivant() for e in ennemis):
             print(f"\n{self.heros.nom} : PV {self.heros.pv}/{self.heros.pv_max}")
@@ -315,6 +467,8 @@ class Arene:
                         break
 
         if self.heros.est_vivant():
+            play_sound_effect(SFX_VICTORY)
+            stop_music()
             print(f"\nVictoire de la vague {self._numero_vague} !")
             xp_total = sum(e.butin_xp for e in ennemis)
             self.heros.gagner_xp(xp_total)
@@ -322,10 +476,13 @@ class Arene:
             or_gagne = 50 + self._numero_vague * 10
             self.heros.or_ += or_gagne
             print(f"Or gagné : {or_gagne}. Or total : {self.heros.or_}")
+            play_music(MUSIC_EXPLORATION)
             self.recompense()
             self.magasin()
             self._numero_vague += 1
         else:
+            play_sound_effect(SFX_DEFEAT)
+            stop_music()
             print(f"\nDéfaite à la vague {self._numero_vague}.")
             # CORRECTION : score ajouté ici seulement en cas de défaite
             self._historique_scores.append(self._numero_vague - 1)
@@ -353,6 +510,7 @@ class Arene:
             self.heros.attaque += 10
 
     def magasin(self):
+        play_sound_effect(SFX_SHOP_ENTER) # Play sound when entering shop
         print(f"\nBienvenue au magasin ! Vous avez {self.heros.or_} or.")
         print("Items disponibles :")
         for i, item in enumerate(items_disponibles):
@@ -375,6 +533,7 @@ class Arene:
                 print("Choix invalide.")
 
     def jouer(self):
+        play_music(MUSIC_EXPLORATION) # Start exploration music when game begins
         print("Bienvenue dans le RPG Python !")
         while True:
             ennemis = self.creer_vague()
@@ -382,9 +541,15 @@ class Arene:
                 break
             if input("Continuer ? (o/n) : ").lower() != 'o':
                 break
+        stop_music() # Stop any music when the game ends
         score = self._numero_vague - 1
         print(f"Score final : Vague {score}")
         # CORRECTION : score ajouté ici seulement si la partie s'est terminée sans défaite
         # (en cas de défaite, le score a déjà été enregistré dans combat())
-        if self.heros.est_vivant():
+        if self.heros.est_vivant() and (not self._historique_scores or self._historique_scores[-1] != score):
             self._historique_scores.append(score)
+
+# Point d'entrée principal
+if __name__ == "__main__":
+    menu = Menu()
+    menu.lancer()
